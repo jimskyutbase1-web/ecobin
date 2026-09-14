@@ -1,0 +1,12 @@
+requirements.txt
+*.py
+*.ino
+esp32_wifi.ino
+camera_ecobin.py
+ecobin_server.py
+env_loader.py
+firebase_service.py
+test_model.py
+train_model.py
+class_names.json
+test_manifest.json
