@@ -1,0 +1,276 @@
+import React, { useState, useEffect } from 'react'
+import { db } from '../../firebase'
+import { collection, onSnapshot } from 'firebase/firestore'
+import {
+  LayoutDashboard,
+  Bell,
+  Settings,
+  BarChart3,
+  LogOut,
+  Leaf,
+  Menu,
+  X,
+  ChevronRight,
+  Wifi,
+  WifiOff
+} from 'lucide-react'
+
+export default function Sidebar({
+  activeTab = 'dashboard',
+  onTabChange,
+  onLogout,
+  deviceIp = '10.114.0.180',
+  isOnline: propIsOnline
+}) {
+  const [mobileOpen, setMobileOpen] = useState(false)
+  const [isOnline, setIsOnline] = useState(false)
+
+  useEffect(() => {
+    let active = true
+    let lastSnapshotOnline = false
+
+    const checkDirectConnection = async () => {
+      if (!deviceIp || deviceIp === '0.0.0.0') {
+        if (active) setIsOnline(false)
+        return
+      }
+      try {
+        const controller = new AbortController()
+        const timeout = setTimeout(() => controller.abort(), 1500)
+        const res = await fetch(`http://${deviceIp}/api/status`, {
+          signal: controller.signal,
+          mode: 'cors'
+        })
+        clearTimeout(timeout)
+        if (active) {
+          if (res.ok) {
+            const data = await res.json().catch(() => null)
+            const isConn = data ? (data.connected === true || data.status === 'connected') : true
+            setIsOnline(isConn)
+          } else if (!lastSnapshotOnline) {
+            setIsOnline(false)
+          }
+        }
+      } catch (err) {
+        if (active && !lastSnapshotOnline) {
+          setIsOnline(false)
+        }
+      }
+    }
+
+    checkDirectConnection()
+    const timer = setInterval(checkDirectConnection, 4000)
+
+    const unsubscribe = onSnapshot(collection(db, 'trash_records'), (snapshot) => {
+      if (!active) return
+      if (snapshot.empty) {
+        lastSnapshotOnline = false
+        checkDirectConnection()
+        return
+      }
+      let newestTime = 0
+      snapshot.docs.forEach((doc) => {
+        const data = doc.data()
+        if (deviceIp && data.deviceIp && data.deviceIp !== deviceIp) return
+        let t = 0
+        if (data.timestamp && typeof data.timestamp.toDate === 'function') {
+          t = data.timestamp.toDate().getTime()
+        } else if (data.timestamp && typeof data.timestamp === 'number') {
+          t = new Date(data.timestamp).getTime()
+        } else if (data.recorded_at) {
+          t = new Date(data.recorded_at).getTime()
+        } else if (doc._document?.createTime?.timestamp?.toDate) {
+          t = doc._document.createTime.timestamp.toDate().getTime()
+        } else if (doc._document?.createTime?.toMillis) {
+          t = doc._document.createTime.toMillis()
+        }
+        if (t > newestTime) newestTime = t
+      })
+
+      const isRecent = newestTime > 0 && (Date.now() - newestTime < 15000)
+      lastSnapshotOnline = isRecent
+      if (isRecent) {
+        setIsOnline(true)
+      } else {
+        checkDirectConnection()
+      }
+    }, () => {
+      lastSnapshotOnline = false
+      if (active) checkDirectConnection()
+    })
+
+    return () => {
+      active = false
+      clearInterval(timer)
+      unsubscribe()
+    }
+  }, [deviceIp])
+
+  const effectiveOnline = propIsOnline !== undefined ? propIsOnline : isOnline
+
+  const navItems = [
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'notifications', label: 'Notifications', icon: Bell },
+    { id: 'reports', label: 'Reports', icon: BarChart3 },
+    { id: 'settings', label: 'Settings', icon: Settings }
+  ]
+
+  const handleSelect = (id) => {
+    if (onTabChange) {
+      onTabChange(id)
+    }
+    setMobileOpen(false)
+  }
+
+  const handleLogout = () => {
+    if (onLogout) {
+      onLogout()
+    } else if (onTabChange) {
+      onTabChange('login')
+    }
+    setMobileOpen(false)
+  }
+
+  const sidebarContent = (
+    <div className="flex flex-col h-full bg-white border-r border-slate-200 text-slate-800 w-64 select-none">
+      <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center text-white shadow-md shadow-emerald-100">
+            <Leaf className="w-5 h-5" />
+          </div>
+          <div>
+            <h1 className="font-extrabold text-base tracking-tight text-slate-900 leading-none">
+              EcoBin <span className="text-emerald-600">IoT</span>
+            </h1>
+            <p className="text-[11px] font-medium text-slate-400 mt-1">
+              Smart Waste System
+            </p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setMobileOpen(false)}
+          className="md:hidden p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+          aria-label="Close menu"
+        >
+          <X className="w-5 h-5" />
+        </button>
+      </div>
+
+      <nav className="flex-1 px-3 py-4 space-y-1.5 overflow-y-auto">
+        {navItems.map((item) => {
+          const Icon = item.icon
+          const isActive = activeTab === item.id
+
+          return (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => handleSelect(item.id)}
+              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all duration-150 ${
+                isActive
+                  ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-200'
+                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-slate-400'}`} />
+                <span>{item.label}</span>
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                {item.badge && Number(item.badge) > 0 ? (
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                      isActive
+                        ? 'bg-white text-emerald-700'
+                        : 'bg-rose-500 text-white'
+                    }`}
+                  >
+                    {item.badge}
+                  </span>
+                ) : null}
+
+                <ChevronRight
+                  className={`w-3.5 h-3.5 transition-transform ${
+                    isActive ? 'opacity-90' : 'opacity-0'
+                  }`}
+                />
+              </div>
+            </button>
+          )
+        })}
+      </nav>
+
+      <div className="p-4 border-t border-slate-100">
+        <div className={`flex items-center justify-between p-3 rounded-xl border mb-3 ${
+          effectiveOnline
+            ? 'bg-emerald-50/70 border-emerald-200 text-emerald-900'
+            : 'bg-slate-50 border-slate-200 text-slate-600'
+        }`}>
+          <div className="flex items-center gap-2.5">
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+              effectiveOnline ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-500'
+            }`}>
+              {effectiveOnline ? <Wifi className="w-4 h-4" /> : <WifiOff className="w-4 h-4" />}
+            </div>
+            <div>
+              <div className="flex items-center gap-1.5">
+                <span className={`w-2 h-2 rounded-full ${
+                  effectiveOnline ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'
+                }`} />
+                <span className="text-xs font-bold leading-none">
+                  {effectiveOnline ? 'ESP32 Online' : 'ESP32 Offline'}
+                </span>
+              </div>
+              <div className="text-[11px] font-mono text-slate-500 mt-1 leading-none">
+                {deviceIp}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-rose-600 hover:bg-rose-50 hover:text-rose-700 transition"
+        >
+          <LogOut className="w-4 h-4 text-rose-500" />
+          <span>Logout</span>
+        </button>
+      </div>
+    </div>
+  )
+
+  return (
+    <>
+      <div className="md:hidden fixed top-4 left-4 z-40">
+        <button
+          type="button"
+          onClick={() => setMobileOpen(true)}
+          className="p-2 rounded-xl bg-white border border-slate-200 text-slate-700 shadow-sm hover:bg-slate-50"
+          aria-label="Open menu"
+        >
+          <Menu className="w-5 h-5" />
+        </button>
+      </div>
+
+      <aside className="hidden md:block h-screen sticky top-0 shrink-0">
+        {sidebarContent}
+      </aside>
+
+      {mobileOpen && (
+        <div className="md:hidden fixed inset-0 z-50 flex">
+          <div
+            className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity"
+            onClick={() => setMobileOpen(false)}
+          />
+          <div className="relative z-10 flex-1 max-w-xs w-full shadow-2xl">
+            {sidebarContent}
+          </div>
+        </div>
+      )}
+    </>
+  )
+}

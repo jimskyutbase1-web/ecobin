@@ -1,0 +1,14 @@
+node_modules
+dist
+.env
+.env.local
+.env.*.local
+*.local
+ecobin-*-firebase-adminsdk-*.json
+*.keras
+dataset/
+__pycache__/
+*.pyc
+.agents/
+Thumbs.db
+.DS_Store

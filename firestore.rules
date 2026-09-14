@@ -1,0 +1,31 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /esp32_connection_logs/{logId} {
+      allow read: if true;
+      allow create: if request.resource.data.event in ['connected', 'disconnected'];
+      allow update, delete: if false;
+    }
+
+    match /trash_records/{docId} {
+      allow read, write: if true;
+    }
+
+    match /recipients/{docId} {
+      allow read, write: if true;
+    }
+
+    match /notifications/{docId} {
+      allow read, write: if true;
+    }
+
+    match /users/{docId} {
+      allow read, write: if true;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
