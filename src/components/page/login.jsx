@@ -4,7 +4,6 @@ import {
   Lock,
   Eye,
   EyeOff,
-  User,
   Phone,
   ArrowRight,
   AlertCircle
@@ -34,7 +33,7 @@ export default function Login({ onLogin, onForgotPassword }) {
 
     const entered = identifier.trim()
     if (!entered) {
-      setError('Please enter your username or contact number.')
+      setError('Please enter your contact number.')
       return
     }
 
@@ -67,18 +66,13 @@ export default function Login({ onLogin, onForgotPassword }) {
         const data = d.data()
         const docContact = (data.contact || '').trim()
         const docContactDigits = docContact.replace(/\D/g, '')
-        const docName = (data.name || d.id || '').trim().toLowerCase()
-        const inputLower = entered.toLowerCase()
 
-        const contactMatch = (docContact && (docContact === entered || docContact === normalizedEntered)) ||
+        return (docContact && (docContact === entered || docContact === normalizedEntered)) ||
           (docContactDigits && enteredDigits && docContactDigits === enteredDigits)
-        const nameMatch = docName === inputLower || d.id.toLowerCase() === inputLower
-
-        return contactMatch || nameMatch
       })
 
       if (!foundDoc) {
-        setError('Account not found. Please check your contact number or username.')
+        setError('Account not found. Please check your contact number.')
         setLoading(false)
         return
       }
@@ -141,26 +135,22 @@ export default function Login({ onLogin, onForgotPassword }) {
           <form onSubmit={handleLoginSubmit} className="space-y-4">
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                Username / Contact Number
+                Contact Number
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                  {/^\d+$/.test(identifier.trim()) ? (
-                    <Phone className="w-4 h-4 text-emerald-600" />
-                  ) : (
-                    <User className="w-4 h-4" />
-                  )}
+                  <Phone className="w-4 h-4 text-emerald-600" />
                 </div>
                 <input
-                  type="text"
+                  type="tel"
                   value={identifier}
                   onChange={(e) => {
                     setIdentifier(e.target.value)
                     if (error) setError('')
                   }}
-                  placeholder="e.g. admin or 09123456789"
-                  autoComplete="username"
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl text-xs sm:text-sm bg-slate-50 border border-slate-200 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-800 transition placeholder:text-slate-400 font-medium"
+                  placeholder="e.g. +639123456789 or 09123456789"
+                  autoComplete="tel"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl text-xs sm:text-sm bg-slate-50 border border-slate-200 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-800 transition placeholder:text-slate-400 font-medium font-mono"
                 />
               </div>
             </div>
